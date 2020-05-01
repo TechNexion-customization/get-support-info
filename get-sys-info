@@ -1,0 +1,167 @@
+#!/bin/bash
+
+echo -e "Getting system information...\n"
+
+# Use tmpfs to store data
+TMPDIR=/tmp/get-system-info
+
+# Output files
+DTB_FILE=dtb.tar.gz
+RPM_FILE=rpm-installed-archive_files.txt
+OUTPUT_FILE=system-info.txt
+DMESGFILE=dmesg.txt
+ARCHIVE_FILE=system-info.tar.gz
+KERN_CONFIG_FILE=config.gz
+
+DTB_PATH=/sys/firmware/devicetree/base
+SYSFSBASE=/sys/devices/soc0
+KERN_CONFIG_PATH=/proc
+ARCHIVE_PATH=${HOME}
+
+# Do all data gathering in TMPDIR
+mkdir ${TMPDIR}
+cd ${TMPDIR}
+
+# Get basic system information
+_UNAME=$(uname -a)
+SOC_FAMILY=$(cat ${SYSFSBASE}/family)
+SOC=$(cat ${SYSFSBASE}/soc_id)
+SOC_REVISION=$(cat ${SYSFSBASE}/revision)
+MACHINE=$(cat ${SYSFSBASE}/machine)
+DATE=$(date)
+
+echo -e "----------------------------------------------------" > ${OUTPUT_FILE}
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e " System Information Report "                          | tee -a ${OUTPUT_FILE}
+echo -e " SOC: ${SOC_FAMILY} ${SOC} Revision ${SOC_REVISION}"  | tee -a ${OUTPUT_FILE}
+echo -e " Machine: ${MACHINE}"                                 | tee -a ${OUTPUT_FILE}
+echo -e " System date and time: ${DATE}"                       | tee -a ${OUTPUT_FILE}
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "----------------------------------------------------\n" >> ${OUTPUT_FILE}
+
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "uname -a output:\n ${_UNAME}" >> ${OUTPUT_FILE}
+
+# Get a list of modules installed in the kernel
+_LSMOD=$(lsmod)
+echo -e "Getting a list of installed kernel modules.\n"
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "Modules installed:\n${_LSMOD}" >> ${OUTPUT_FILE}
+
+# Copy kernel configuration file
+echo "Getting a copy of the kernel configuration file..."
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} ; then
+	cp  ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} .
+	echo "Kernel configuration file (${KERN_CONFIG_FILE}) copied" | tee -a ${OUTPUT_FILE}
+else
+	echo "No kernel configuration file found in ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE}\n" | tee -a ${OUTPUT_FILE}
+fi
+
+# Get a copy of the device tree
+echo "Getting copy of device tree..."
+DTC=/usr/bin/dtc
+DTS_FILE=device-tree.dts
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -d ${DTB_PATH} ; then
+	cd ${DTB_PATH}
+	tar czf ${TMPDIR}/${DTB_FILE} .
+	cd ${TMPDIR}
+	echo -e "Device tree copied to ${DTB_FILE}" | tee -a ${OUTPUT_FILE}
+
+	# If we have DTC installed then try to make a dts, to make this easier
+	echo "Checking to see if we have dtc installed..."
+
+	echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+	if test -f ${DTC} ; then
+		echo -e "${DTC} is installed. Making a dts."
+		${DTC} -qqq -f -I fs -O dts ${DTB_PATH} -o ${DTS_FILE}
+		echo -e "Device tree source file made and located in (${DTS_FILE})" | tee -a ${OUTPUT_FILE}
+	else
+		echo -e "${DTC} is not installed. Device tree directory can be decompiled with dtc on host"
+	fi
+else
+	echo -e "Device tree firmware not found at ${DTB_PATH}" | tee -a ${OUTPUT_FILE}
+fi
+
+# Get a list of installed archive files, if a archive_file manager is installed
+echo "Getting list of installed packages..."
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f /usr/bin/rpm ; then
+	echo "...RPM archive_file manager is present"
+	rpm -qa --qf '(%{INSTALLTIME:date}): %{NAME}-%{VERSION}\n' > ${RPM_FILE}
+	echo "List of RPM archive_files installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
+fi
+
+echo "Getting logs..."
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+dmesg > ${DMESGFILE}
+echo -e "dmesg log stored in ${DMESGFILE}" | tee -a ${OUTPUT_FILE}
+
+echo -e "Getting internet connection information..."
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+_IFCONFIG=$(ifconfig -a)
+echo -e "Internet connections:\n${_IFCONFIG}\n\n" >> ${OUTPUT_FILE}
+
+echo -e "Getting Bluetooth configuration information..."
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+_HCICONFIG=$(hciconfig -a)
+echo -e "BT configuration:\n${_HCICONFIG}\n\n" >> ${OUTPUT_FILE}
+
+echo -e "Getting information from debugfs, if present..."
+DEBUGFS_PATH=/sys/kernel/debug
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -d ${DEBUGFS_PATH} ; then
+	echo -e "Kernel debugfs is present"
+	echo -e "Selected kernel debugfs information\n" >> ${OUTPUT_FILE}
+	echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+	echo -e "Clock summary: " >> ${OUTPUT_FILE}
+	cat ${DEBUGFS_PATH}/clk/clk_summary >> ${OUTPUT_FILE}
+	echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+	echo -e "MMC information: " >> ${OUTPUT_FILE}
+	if test -d ${DEBUGFS_PATH}/mmc0 ; then
+		echo -e "MMC0:" >> ${OUTPUT_FILE}
+		cat ${DEBUGFS_PATH}/mmc0/ios >> ${OUTPUT_FILE}
+	fi
+	if test -d ${DEBUGFS_PATH}/mmc1 ; then
+		echo -e "MMC1:" >> ${OUTPUT_FILE}
+		cat ${DEBUGFS_PATH}/mmc1/ios >> ${OUTPUT_FILE}
+	fi
+	if test -d ${DEBUGFS_PATH}/mmc2 ; then
+		echo -e "MMC2:" >> ${OUTPUT_FILE}
+		cat ${DEBUGFS_PATH}/mmc2/ios >> ${OUTPUT_FILE}
+	fi
+else
+	echo -e "Kernel debugfs is not present"
+fi
+
+echo -e "Getting interrupt information, if present..."
+INTERRUPTS_FILE=/proc/interrupts
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${INTERRUPTS_FILE} ; then
+	echo -e "${INTERRUPTS_FILE} is present"
+	echo -e "${INTERRUPTS_FILE} contents: \n" >> ${OUTPUT_FILE}
+	cat ${INTERRUPTS_FILE} >> ${OUTPUT_FILE}
+else
+	echo -e "${INTERRUPTS_FILE} is not present"
+fi
+
+echo -e "Getting devices..."
+DEVICES_FILE=/proc/devices
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${DEVICES_FILE} ; then
+	echo -e "${DEVICES_FILE} is present"
+	echo -e "${DEVICES_FILE} contents: \n" >> ${OUTPUT_FILE}
+	cat ${DEVICES_FILE} >> ${OUTPUT_FILE}
+else
+	echo -e "${DEVICES_FILE} is not present"
+fi
+
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "END REPORT" >> ${OUTPUT_FILE}
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+
+echo -e "Packing all in archive"
+tar czf ${ARCHIVE_PATH}/${ARCHIVE_FILE} ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
+
+echo -e "System information located in ${ARCHIVE_PATH}/${ARCHIVE_FILE}"
