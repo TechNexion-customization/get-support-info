@@ -1,17 +1,18 @@
 #!/bin/bash
 
-echo -e "Getting system information...\n"
+echo -e "Getting support information...\n"
 
 # Use tmpfs to store data
-TMPDIR=/tmp/get-system-info
+TMPDIR=/tmp/get-support-info
+DATETIME=$(date -u +'%y%m%d%H%M%S')
 
 # Output files
 DTB_FILE=dtb.tar.gz
-RPM_FILE=rpm-installed-archive_files.txt
-OUTPUT_FILE=system-info.txt
+RPM_FILE=rpm-installed-files.txt
+OUTPUT_FILE=support-info.txt
 DMESGFILE=dmesg.txt
-ARCHIVE_FILE=system-info.tar.gz
 KERN_CONFIG_FILE=config.gz
+ARCHIVE_FILE=support-info_${DATETIME}.tar.gz
 
 DTB_PATH=/sys/firmware/devicetree/base
 SYSFSBASE=/sys/devices/soc0
@@ -32,7 +33,7 @@ DATE=$(date)
 
 echo -e "----------------------------------------------------" > ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
-echo -e " System Information Report "                          | tee -a ${OUTPUT_FILE}
+echo -e " Support Information Report "                         | tee -a ${OUTPUT_FILE}
 echo -e " SOC: ${SOC_FAMILY} ${SOC} Revision ${SOC_REVISION}"  | tee -a ${OUTPUT_FILE}
 echo -e " Machine: ${MACHINE}"                                 | tee -a ${OUTPUT_FILE}
 echo -e " System date and time: ${DATE}"                       | tee -a ${OUTPUT_FILE}
