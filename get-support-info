@@ -20,8 +20,8 @@ KERN_CONFIG_PATH=/proc
 ARCHIVE_PATH=${HOME}
 
 # Do all data gathering in TMPDIR
-mkdir ${TMPDIR}
-cd ${TMPDIR}
+[ -d ${TMPDIR} ] || mkdir ${TMPDIR}
+cd ${TMPDIR} || echo -e "Unable to open ${TMPDIR}" exit
 
 # Get basic system information
 _UNAME=$(uname -a)
@@ -54,9 +54,9 @@ echo "Getting a copy of the kernel configuration file..."
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} ; then
 	cp  ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} .
-	echo "Kernel configuration file (${KERN_CONFIG_FILE}) copied" | tee -a ${OUTPUT_FILE}
+	echo -e "Kernel configuration file (${KERN_CONFIG_FILE}) copied" | tee -a ${OUTPUT_FILE}
 else
-	echo "No kernel configuration file found in ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE}\n" | tee -a ${OUTPUT_FILE}
+	echo -e "No kernel configuration file found in ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE}\n" | tee -a ${OUTPUT_FILE}
 fi
 
 # Get a copy of the device tree
@@ -65,9 +65,9 @@ DTC=/usr/bin/dtc
 DTS_FILE=device-tree.dts
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -d ${DTB_PATH} ; then
-	cd ${DTB_PATH}
+	cd ${DTB_PATH} || echo -e "Could not cd to ${DTB_PATH}" exit
 	tar czf ${TMPDIR}/${DTB_FILE} .
-	cd ${TMPDIR}
+	cd ${TMPDIR} || echo -e "Could not cd to ${TMPDIR}" exit
 	echo -e "Device tree copied to ${DTB_FILE}" | tee -a ${OUTPUT_FILE}
 
 	# If we have DTC installed then try to make a dts, to make this easier
@@ -91,7 +91,7 @@ echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f /usr/bin/rpm ; then
 	echo "...RPM archive_file manager is present"
 	rpm -qa --qf '(%{INSTALLTIME:date}): %{NAME}-%{VERSION}\n' > ${RPM_FILE}
-	echo "List of RPM archive_files installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
+	echo -e "List of RPM archive_files installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
 fi
 
 echo "Getting logs..."
@@ -163,6 +163,6 @@ echo -e "END REPORT" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 
 echo -e "Packing all in archive"
-tar czf ${ARCHIVE_PATH}/${ARCHIVE_FILE} ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
+tar czf "${ARCHIVE_PATH}/${ARCHIVE_FILE}" ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
 
 echo -e "System information located in ${ARCHIVE_PATH}/${ARCHIVE_FILE}"
