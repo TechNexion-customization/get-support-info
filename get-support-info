@@ -1,10 +1,16 @@
 #!/bin/bash
+###############################################################################
+# get-support-info: Shell script to gather system support information
+# (c) TechNexion Ltd.
+# Author: John Weber (john.weber@technexion.com)
+###############################################################################
 
 echo -e "Getting support information...\n"
 
 # Use tmpfs to store data
 TMPDIR=/tmp/get-support-info
 DATETIME=$(date -u +'%y%m%d%H%M%S')
+UPTIME=$(uptime)
 
 # Output files
 DTB_FILE=dtb.tar.gz
@@ -37,6 +43,7 @@ echo -e " Support Information Report "                         | tee -a ${OUTPUT
 echo -e " SOC: ${SOC_FAMILY} ${SOC} Revision ${SOC_REVISION}"  | tee -a ${OUTPUT_FILE}
 echo -e " Machine: ${MACHINE}"                                 | tee -a ${OUTPUT_FILE}
 echo -e " System date and time: ${DATE}"                       | tee -a ${OUTPUT_FILE}
+echo -e " Up Time: ${UPTIME}"                                  | tee -a ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------\n" >> ${OUTPUT_FILE}
 
@@ -156,6 +163,17 @@ if test -f ${DEVICES_FILE} ; then
 	cat ${DEVICES_FILE} >> ${OUTPUT_FILE}
 else
 	echo -e "${DEVICES_FILE} is not present"
+fi
+
+echo -e "Getting a list of active processes..."
+PS_CMD=/bin/ps
+echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${PS_CMD} ; then
+	echo -e "${PS_CMD} is present"
+	echo -e "Active processess \n" >> ${OUTPUT_FILE}
+	${PS_CMD} -efHl >> ${OUTPUT_FILE}
+else
+	echo -e "${PS_CMD} is not present"
 fi
 
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
