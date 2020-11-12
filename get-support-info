@@ -62,20 +62,32 @@ echo -e " Machine: ${MACHINE}"                                 | tee -a ${OUTPUT
 echo -e " System date and time: ${DATE}"                       | tee -a ${OUTPUT_FILE}
 echo -e " Up Time: ${UPTIME}"                                  | tee -a ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
-echo -e "----------------------------------------------------\n" >> ${OUTPUT_FILE}
-
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e "uname -a output:\n ${_UNAME}" >> ${OUTPUT_FILE}
+
+# Get OS release information if present
+echo -e "Getting information from /etc/os-release if present..."
+OS_RELEASE=/etc/os-release
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${OS_RELEASE} ; then
+    echo -e "OS release information from ${OS_RELEASE}:" >> ${OUTPUT_FILE}
+	cat ${OS_RELEASE} >> ${OUTPUT_FILE}
+	echo -e "OS release information (${OS_RELEASE}) copied\n"
+else
+	echo -e "${OS_RELEASE} not found\n" | tee -a ${OUTPUT_FILE}
+fi
 
 # Get a list of modules installed in the kernel
 _LSMOD=$(lsmod)
 echo -e "Getting a list of installed kernel modules.\n"
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e "Modules installed:\n${_LSMOD}" >> ${OUTPUT_FILE}
 
 # Copy kernel configuration file
 echo "Getting a copy of the kernel configuration file..."
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} ; then
 	cp  ${KERN_CONFIG_PATH}/${KERN_CONFIG_FILE} .
 	echo -e "Kernel configuration file (${KERN_CONFIG_FILE}) copied" | tee -a ${OUTPUT_FILE}
@@ -87,7 +99,7 @@ fi
 echo "Getting copy of device tree..."
 DTC=/usr/bin/dtc
 DTS_FILE=device-tree.dts
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -d ${DTB_PATH} ; then
 	cd ${DTB_PATH} || echo -e "Could not cd to ${DTB_PATH}" exit
 	tar czf ${TMPDIR}/${DTB_FILE} .
@@ -111,31 +123,38 @@ fi
 
 # Get a list of installed archive files, if a archive_file manager is installed
 echo "Getting list of installed packages..."
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f /usr/bin/rpm ; then
-	echo "...RPM archive_file manager is present"
+	echo "...RPM archive file manager is present"
 	rpm -qa --qf '(%{INSTALLTIME:date}): %{NAME}-%{VERSION}\n' > ${RPM_FILE}
 	echo -e "List of RPM archive_files installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
+else
+	echo -e "RPM archive file manager not present" | tee -a ${OUTPUT_FILE}
 fi
 
 echo "Getting logs..."
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 dmesg > ${DMESGFILE}
 echo -e "dmesg log stored in ${DMESGFILE}" | tee -a ${OUTPUT_FILE}
 
 echo -e "Getting internet connection information..."
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 _IFCONFIG=$(ifconfig -a)
 echo -e "Internet connections:\n${_IFCONFIG}\n\n" >> ${OUTPUT_FILE}
 
+echo -e "Getting wireless radio information..."
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+_WLAN_TEMP=$(iwpriv wlan0 get_temp)
+echo -e "Wireless radio information:\n${_WLAN_TEMP}\n\n" >> ${OUTPUT_FILE}
+
 echo -e "Getting Bluetooth configuration information..."
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 _HCICONFIG=$(hciconfig -a)
 echo -e "BT configuration:\n${_HCICONFIG}\n\n" >> ${OUTPUT_FILE}
 
 echo -e "Getting information from debugfs, if present..."
 DEBUGFS_PATH=/sys/kernel/debug
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -d ${DEBUGFS_PATH} ; then
 	echo -e "Kernel debugfs is present"
 	echo -e "Selected kernel debugfs information\n" >> ${OUTPUT_FILE}
@@ -162,7 +181,7 @@ fi
 
 echo -e "Getting interrupt information, if present..."
 INTERRUPTS_FILE=/proc/interrupts
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f ${INTERRUPTS_FILE} ; then
 	echo -e "${INTERRUPTS_FILE} is present"
 	echo -e "${INTERRUPTS_FILE} contents: \n" >> ${OUTPUT_FILE}
@@ -173,7 +192,7 @@ fi
 
 echo -e "Getting devices..."
 DEVICES_FILE=/proc/devices
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f ${DEVICES_FILE} ; then
 	echo -e "${DEVICES_FILE} is present"
 	echo -e "${DEVICES_FILE} contents: \n" >> ${OUTPUT_FILE}
@@ -182,9 +201,18 @@ else
 	echo -e "${DEVICES_FILE} is not present"
 fi
 
+echo -e "Getting output of i2cdetect..."
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "Output of i2c_detect for all i2c masters:" >> ${OUTPUT_FILE}
+for file in /dev/i2c-*
+do
+	_I2CDETECT_CMD=$(i2cdetect -y "${file: -1}")
+	echo -e "Device: ${file}:\n${_I2CDETECT_CMD}\n" >> ${OUTPUT_FILE}
+done
+
 echo -e "Getting a list of active processes..."
 PS_CMD=/bin/ps
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f ${PS_CMD} ; then
 	echo -e "${PS_CMD} is present"
 	echo -e "Active processess \n" >> ${OUTPUT_FILE}
@@ -193,7 +221,7 @@ else
 	echo -e "${PS_CMD} is not present"
 fi
 
-echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e "END REPORT" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 
