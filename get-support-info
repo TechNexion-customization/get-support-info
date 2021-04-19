@@ -54,6 +54,10 @@ SOC_REVISION=$(cat ${SYSFSBASE}/revision)
 MACHINE=$(cat ${SYSFSBASE}/machine)
 DATE=$(date)
 
+# SOC die temperature
+THERMAL=$(cat /sys/class/thermal/thermal_zone0/temp)
+DIETEMP=$(expr ${THERMAL} / 1000)
+
 echo -e "----------------------------------------------------" > ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e " Support Information Report "                         | tee -a ${OUTPUT_FILE}
@@ -61,6 +65,7 @@ echo -e " SOC: ${SOC_FAMILY} ${SOC} Revision ${SOC_REVISION}"  | tee -a ${OUTPUT
 echo -e " Machine: ${MACHINE}"                                 | tee -a ${OUTPUT_FILE}
 echo -e " System date and time: ${DATE}"                       | tee -a ${OUTPUT_FILE}
 echo -e " Up Time: ${UPTIME}"                                  | tee -a ${OUTPUT_FILE}
+echo -e " Die temperature: ${DIETEMP} C"                       | tee -a ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 
@@ -115,7 +120,7 @@ if test -d ${DTB_PATH} ; then
 		${DTC} -qqq -f -I fs -O dts ${DTB_PATH} -o ${DTS_FILE}
 		echo -e "Device tree source file made and located in (${DTS_FILE})" | tee -a ${OUTPUT_FILE}
 	else
-		echo -e "${DTC} is not installed. Device tree directory can be decompiled with dtc on host"
+		echo -e "${DTC} is not installed. Device tree directory can be decompiled with dtc on host" | tee -a ${OUTPUT_FILE}
 	fi
 else
 	echo -e "Device tree firmware not found at ${DTB_PATH}" | tee -a ${OUTPUT_FILE}
@@ -219,6 +224,17 @@ if test -f ${PS_CMD} ; then
 	${PS_CMD} -efHl >> ${OUTPUT_FILE}
 else
 	echo -e "${PS_CMD} is not present"
+fi
+
+echo -e "Getting process utilization and load averages..."
+TOP_CMD=/usr/bin/top
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f ${TOP_CMD} ; then
+	echo -e "${TOP_CMD} is present"
+	echo -e "Top command output \n" >> ${OUTPUT_FILE}
+	${TOP_CMD} -b -n 1 -d 1 -c -w 512 -1HS >> ${OUTPUT_FILE}
+else
+	echo -e "${TOP_CMD} is not present"
 fi
 
 echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
