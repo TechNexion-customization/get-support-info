@@ -232,7 +232,7 @@ echo -e "\n----------------------------------------------------" >> ${OUTPUT_FIL
 if test -f ${TOP_CMD} ; then
 	echo -e "${TOP_CMD} is present"
 	echo -e "Top command output \n" >> ${OUTPUT_FILE}
-	${TOP_CMD} -b -n 1 -d 1 -c -w 512 -1HS >> ${OUTPUT_FILE}
+	${TOP_CMD} -b -n 1 -d 1 -c -w 512 -HS >> ${OUTPUT_FILE}
 else
 	echo -e "${TOP_CMD} is not present"
 fi
