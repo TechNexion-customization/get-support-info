@@ -139,7 +139,7 @@ fi
 
 echo "Getting logs..."
 echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
-dmesg > ${DMESGFILE}
+dmesg -kuxS --level=emerg,alert,crit,err,warn,notice,info,debug > ${DMESGFILE}
 echo -e "dmesg log stored in ${DMESGFILE}" | tee -a ${OUTPUT_FILE}
 
 echo -e "Getting internet connection information..."
