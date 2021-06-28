@@ -31,7 +31,8 @@ UPTIME=$(uptime)
 
 # Output files
 DTB_FILE=dtb.tar.gz
-RPM_FILE=rpm-installed-files.txt
+RPM_FILE=installed-packages-rpm.txt
+DPKG_FILE=installed-packages-dpkg.txt
 OUTPUT_FILE=support-info.txt
 DMESGFILE=dmesg.txt
 KERN_CONFIG_FILE=config.gz
@@ -126,15 +127,47 @@ else
 	echo -e "Device tree firmware not found at ${DTB_PATH}" | tee -a ${OUTPUT_FILE}
 fi
 
-# Get a list of installed archive files, if a archive_file manager is installed
-echo "Getting list of installed packages..."
+# Get a list of installed packages, if an RPM package manager is installed
+echo "Getting list of RPM installed packages..."
 echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 if test -f /usr/bin/rpm ; then
 	echo "...RPM archive file manager is present"
-	rpm -qa --qf '(%{INSTALLTIME:date}): %{NAME}-%{VERSION}\n' > ${RPM_FILE}
-	echo -e "List of RPM archive_files installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
+
+	# Get a list of installed packages
+	RPM_FILES=$(rpm -qa --qf '(%{INSTALLTIME:date}): %{NAME}-%{VERSION}\n')
+
+	if [[ $? != 0 ]]; then
+		echo -e "rpm command failed" | tee -a ${OUTPUT_FILE}
+	elif [[ $RPM_FILES ]]; then
+		echo "${RPM_FILES}" > $RPM_FILE
+		echo -e "List of RPM packages installed is in ${RPM_FILE}" | tee -a ${OUTPUT_FILE}
+	else
+		echo -e "No RPM packages installed." | tee -a ${RPM_FILE}
+	fi
 else
 	echo -e "RPM archive file manager not present" | tee -a ${OUTPUT_FILE}
+fi
+
+# Get a list of installed archive files, if a package manager is installed
+echo "Getting list of installed packages..."
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+if test -f /usr/bin/dpkg-query ; then
+	echo "...Debian package manager is present"
+
+	# Get a list of installed DPKG packages
+	DPKG_FILES=$(dpkg-query -f '${binary:Package} : ${version} \n' -W)
+
+	if [[ $? != 0 ]]; then
+		echo -e "dpkg-query command failed" | tee -a ${OUTPUT_FILE}
+	elif [[ $DPKG_FILES ]]; then
+		echo "$DPKG_FILES" > $DPKG_FILE
+		echo -e "List of DPKG packages installed is in ${DPKG_FILE}" | tee -a ${OUTPUT_FILE}
+	else
+		echo -e "No DPKG packages installed." | tee -a ${DPKG_FILE}
+	fi
+
+else
+	echo -e "Debian package manager not present" | tee -a ${OUTPUT_FILE}
 fi
 
 echo "Getting logs..."
@@ -242,6 +275,6 @@ echo -e "END REPORT" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 
 echo -e "Packing all in archive"
-tar czf "${ARCHIVE_PATH}/${ARCHIVE_FILE}" ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
+tar czf "${ARCHIVE_PATH}/${ARCHIVE_FILE}" ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DPKG_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
 
 echo -e "System information located in ${ARCHIVE_PATH}/${ARCHIVE_FILE}"
