@@ -2,7 +2,7 @@
 ###############################################################################
 # get-support-info: Shell script to gather system support information
 # Author: John Weber (john.weber@technexion.com)
-# Copyright 2020 TechNexion Ltd.
+# Copyright 2021 TechNexion Ltd.
 # Permission is hereby granted, free of charge, to any person obtaining a copy
 # of this software and associated documentation files (the "Software"), to deal
 # in the Software without restriction, including without limitation the rights
@@ -35,10 +35,12 @@ RPM_FILE=installed-packages-rpm.txt
 DPKG_FILE=installed-packages-dpkg.txt
 OUTPUT_FILE=support-info.txt
 DMESGFILE=dmesg.txt
+DRM_LOG_FILE=drm-log.txt
 KERN_CONFIG_FILE=config.gz
 ARCHIVE_FILE=support-info_${DATETIME}.tar.gz
 
 DTB_PATH=/sys/firmware/devicetree/base
+DRM_DEBUG_PATH=/sys/module/drm/parameters/debug
 SYSFSBASE=/sys/devices/soc0
 KERN_CONFIG_PATH=/proc
 ARCHIVE_PATH=${HOME}
@@ -175,6 +177,37 @@ echo -e "\n----------------------------------------------------" >> ${OUTPUT_FIL
 dmesg -kuxS --level=emerg,alert,crit,err,warn,notice,info,debug > ${DMESGFILE}
 echo -e "dmesg log stored in ${DMESGFILE}" | tee -a ${OUTPUT_FILE}
 
+#
+# DRM
+#
+
+echo "Getting DRM log, if DRM is present..."
+echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
+
+if test -f $DRM_DEBUG_PATH ; then
+
+	echo "...$DRM_DEBUG_PATH is present, so enable DRM debugging."
+	echo
+	echo "  DRM debugging is useful for helping diagnose display problems,"
+	echo "  but can log a lot of messages which eventually may fill up the"
+	echo "  kernel ring buffer. This script will leave DRM debugging enabled so"
+	echo "  that more log data can be gathered. To turn this off, run:"
+	echo
+	echo "    echo 0x0 > $DRM_DEBUG_PATH"
+	echo
+
+	# Turn on DRM debugging info
+	echo 0xf > $DRM_DEBUG_PATH
+
+	# Grab the DRM log. This is a normal dmesg, but we filter for drm only
+	dmesg -kuxS --level=emerg,alert,crit,err,warn,notice,info,debug | grep drm > ${DRM_LOG_FILE}
+	echo -e "drm log stored in ${DRM_LOG_FILE}" | tee -a ${OUTPUT_FILE}
+
+else
+	echo -e "$DRM_DEBUG_PATH is not present" | tee -a ${OUTPUT_FILE}
+	echo -e "DRM not present on system" | tee -a ${DRM_LOG_FILE}
+fi
+
 echo -e "Getting internet connection information..."
 echo -e "\n----------------------------------------------------" >> ${OUTPUT_FILE}
 _IFCONFIG=$(ifconfig -a)
@@ -275,6 +308,6 @@ echo -e "END REPORT" >> ${OUTPUT_FILE}
 echo -e "----------------------------------------------------" >> ${OUTPUT_FILE}
 
 echo -e "Packing all in archive"
-tar czf "${ARCHIVE_PATH}/${ARCHIVE_FILE}" ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DPKG_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE}
+tar czf "${ARCHIVE_PATH}/${ARCHIVE_FILE}" ${OUTPUT_FILE} ${DMESGFILE} ${RPM_FILE} ${DPKG_FILE} ${DTB_FILE} ${DTS_FILE} ${KERN_CONFIG_FILE} ${DRM_LOG_FILE}
 
 echo -e "System information located in ${ARCHIVE_PATH}/${ARCHIVE_FILE}"
